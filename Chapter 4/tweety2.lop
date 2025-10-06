@@ -1,1 +1,14 @@
 % Create a solution for Exercise 4.3, page 73
+Phần 2. Axiomatization 2 (thêm luật “chim cánh cụt không bay”)
+KB:
+
+penguin(tweety)
+
+∀x (penguin(x) → bird(x))
+
+∀x (bird(x) → fly(x))
+
+∀x (penguin(x) → ¬fly(x))
+
+Từ đây, trình chứng minh có thể suy ra cả fly(tweety) và ¬fly(tweety).
+Kết quả: KB mâu thuẫn. Đây chính là hệ quả của tính đơn điệu trong logic.
