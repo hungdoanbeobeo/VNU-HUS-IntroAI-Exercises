@@ -1,1 +1,12 @@
 % Create a solution for Exercise 4.3, page 73
+Phần 1. Axiomatization 1 (cơ sở tri thức ban đầu)
+KB:
+
+penguin(tweety)
+
+∀x (penguin(x) → bird(x))
+
+∀x (bird(x) → fly(x))
+
+Từ đây, trình chứng minh tự động sẽ suy ra: fly(tweety).
+Kết quả: Tweety bay được, nhưng đây là mô hình sai vì chưa xét đặc điểm riêng của chim cánh cụt.
