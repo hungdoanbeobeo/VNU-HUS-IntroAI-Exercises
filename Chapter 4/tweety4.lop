@@ -1,1 +1,18 @@
 % Create a solution for Exercise 4.3, page 73
+Phần 4. Axiomatization 4 (mở rộng thêm loài khác – ví dụ quạ Abraxas)
+KB:
+
+raven(abraxas)
+
+∀x (raven(x) → bird(x))
+
+penguin(tweety)
+
+∀x (penguin(x) → bird(x))
+
+∀x (bird(x) ∧ ¬penguin(x) → fly(x))
+
+∀x (penguin(x) → ¬fly(x))
+
+Trong KB này, ta chỉ chứng minh được ¬fly(tweety).
+Không thể chứng minh được gì về Abraxas (vì thiếu luật nói rằng quạ không phải chim cánh cụt).
