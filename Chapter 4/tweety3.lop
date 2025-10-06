@@ -1,1 +1,15 @@
 % Create a solution for Exercise 4.3, page 73
+Phần 3. Axiomatization 3 (loại bỏ mâu thuẫn bằng luật đặc biệt cho chim cánh cụt)
+KB:
+
+penguin(tweety)
+
+∀x (penguin(x) → bird(x))
+
+∀x (bird(x) ∧ ¬penguin(x) → fly(x))
+
+∀x (penguin(x) → ¬fly(x))
+
+Khi chạy chứng minh, ta thu được: ¬fly(tweety).
+Không thể suy ra fly(tweety).
+Kết quả: KB nhất quán, Tweety không bay.
