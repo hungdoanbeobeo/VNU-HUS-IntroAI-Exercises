@@ -1,1 +1,17 @@
 % Create a solution for Exercise 4.3, page 73
+Phần 5. Axiomatization 5 (thêm luật “quạ không phải chim cánh cụt”)
+KB:
+
+raven(abraxas)
+
+∀x (raven(x) → bird(x))
+
+∀x (raven(x) → ¬penguin(x))
+
+penguin(tweety)
+
+∀x (penguin(x) → bird(x))
+
+∀x (bird(x) ∧ ¬penguin(x) → fly(x))
+
+∀x (penguin(x) → ¬fly(x))
