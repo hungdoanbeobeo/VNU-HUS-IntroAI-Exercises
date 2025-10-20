@@ -1,0 +1,232 @@
+import collections
+
+# A Node class to store state and path information
+class Node:
+    def __init__(self, state, parent=None, action=None):
+        self.state = state
+        self.parent = parent
+        self.action = action
+        # Depth is the path cost from the root
+        self.depth = 0
+        if parent:
+            self.depth = parent.depth + 1
+
+    def __repr__(self):
+        return f"<Node {self.state}>"
+
+    # For comparing nodes, e.g., in a visited set
+    def __hash__(self):
+        return hash(self.state)
+
+    def __eq__(self, other):
+        return isinstance(other, Node) and self.state == other.state
+
+# --- 8-Puzzle Helper Functions ---
+
+# The target we are trying to reach
+GOAL_STATE = (1, 2, 3, 4, 5, 6, 7, 8, 0)
+
+def is_goal(state):
+    return state == GOAL_STATE
+
+def get_neighbors(state):
+    """
+    Returns a list of valid neighbor states (tuples).
+    """
+    neighbors = []
+    # Convert tuple to list to find the 0
+    s = list(state)
+    idx = s.index(0)
+    
+    # 0 is at index `idx`, which corresponds to row `r` and col `c`
+    r, c = divmod(idx, 3)
+    
+    # Valid moves: (dr, dc, action_name)
+    possible_moves = [
+        (-1, 0, 'Up'),    # Up
+        (1, 0, 'Down'),   # Down
+        (0, -1, 'Left'),  # Left
+        (0, 1, 'Right')   # Right
+    ]
+    
+    for dr, dc, action in possible_moves:
+        nr, nc = r + dr, c + dc
+        
+        # Check if the new row/col is within the 3x3 grid
+        if 0 <= nr < 3 and 0 <= nc < 3:
+            # Calculate the new index in the 1D list
+            n_idx = nr * 3 + nc
+            
+            # Create the new state by swapping
+            new_s = list(s)
+            new_s[idx], new_s[n_idx] = new_s[n_idx], new_s[idx]
+            
+            # Add the new state (as a tuple) and the action
+            neighbors.append((tuple(new_s), action))
+            
+    return neighbors
+
+def reconstruct_path(node):
+    """Backtracks from a goal node to the root to get the solution path."""
+    path = []
+    while node:
+        if node.action:
+            path.append((node.action, node.state))
+        node = node.parent
+    return list(reversed(path)) # Reverse to get path from start to goal
+def breadth_first_search(initial_state):
+    """
+    Finds the shortest path using BFS.
+    """
+    if is_goal(initial_state):
+        return [("Start", initial_state)]
+
+    start_node = Node(initial_state)
+    
+    # The 'frontier' (nodes to be explored) is a FIFO queue
+    frontier = collections.deque([start_node])
+    
+    # The 'explored' set (states we've already visited)
+    explored = {initial_state}
+    
+    while frontier:
+        # 1. Get the oldest node from the front of the queue
+        current_node = frontier.popleft()
+        
+        # 2. Explore its neighbors
+        for new_state, action in get_neighbors(current_node.state):
+            
+            # 3. If we haven't seen this state before
+            if new_state not in explored:
+                
+                # Create a new node for this state
+                new_node = Node(new_state, parent=current_node, action=action)
+
+                # 4. Check if it's the goal
+                if is_goal(new_state):
+                    return reconstruct_path(new_node)
+                
+                # 5. Add to explored and add to the back of the queue
+                explored.add(new_state)
+                frontier.append(new_node)
+                
+    return None # No solution found
+
+def depth_first_search(initial_state):
+    """
+    Finds *a* path using DFS. Not guaranteed to be optimal.
+    """
+    if is_goal(initial_state):
+        return [("Start", initial_state)]
+        
+    start_node = Node(initial_state)
+
+    # The 'frontier' (nodes to be explored) is a LIFO stack
+    frontier = [start_node] 
+    
+    # The 'explored' set (states we've already visited)
+    explored = {initial_state}
+    
+    while frontier:
+        # 1. Get the newest node from the top of the stack
+        current_node = frontier.pop()
+        
+        # Note: We check for goal *after* popping, 
+        # because the start node might be the goal.
+        if is_goal(current_node.state):
+            return reconstruct_path(current_node)
+            
+        # 2. Explore its neighbors
+        for new_state, action in get_neighbors(current_node.state):
+            
+            # 3. If we haven't seen this state before
+            if new_state not in explored:
+                # 4. Add to explored and add to the top of the stack
+                explored.add(new_state)
+                new_node = Node(new_state, parent=current_node, action=action)
+                frontier.append(new_node)
+                
+    return None # No solution found
+
+
+# Helper for IDS: Depth-Limited Search (DLS)
+def depth_limited_search(node, depth_limit):
+    """
+    Recursive helper for IDS.
+    Returns a solution node, 'cutoff', or 'failure'.
+    """
+    if is_goal(node.state):
+        return node  # Found a solution
+    
+    if node.depth == depth_limit:
+        return 'cutoff'  # Reached depth limit
+    
+    cutoff_occurred = False
+    for new_state, action in get_neighbors(node.state):
+        
+        # --- Simple Cycle Check ---
+        # Avoid going back to the parent (a 1-step cycle)
+        # A more robust check would be to pass the whole path,
+        # but for IDS, this is often sufficient and faster 
+        # than a full 'explored' set.
+        if node.parent and new_state == node.parent.state:
+            continue
+            
+        new_node = Node(new_state, parent=node, action=action)
+        
+        result = depth_limited_search(new_node, depth_limit)
+        
+        if result == 'cutoff':
+            cutoff_occurred = True
+        elif result is not None:
+            # Found a solution! Pass it up.
+            return result
+            
+    # If any path was cut off, return 'cutoff'. 
+    # Otherwise, all paths at this level failed.
+    return 'cutoff' if cutoff_occurred else None
+
+def iterative_deepening_search(initial_state):
+    """
+    Finds the shortest path using IDS.
+    """
+    if is_goal(initial_state):
+        return [("Start", initial_state)]
+
+    start_node = Node(initial_state)
+    
+    # Loop from depth 0 up to a practical max
+    for depth in range(100): # 100 is an arbitrary high limit
+        result = depth_limited_search(start_node, depth)
+        
+        if result == 'cutoff':
+            # We hit the limit, but haven't found a solution yet.
+            # Continue to the next (deeper) iteration.
+            continue
+        elif result is not None:
+            # We found the solution node!
+            return reconstruct_path(result)
+        else:
+            # 'None' means the search failed (no solution possible)
+            return None
+            
+    return None # Failed to find a solution within the max depth
+
+# --- Example Usage ---
+if __name__ == "__main__":
+    initial_state = (1, 2, 3, 4, 0, 5, 6, 7, 8)  # Example starting state
+
+    print("BFS Solution:")
+    bfs_solution = breadth_first_search(initial_state)
+    for action, state in bfs_solution:
+        print(action, state)
+
+    print("\nDFS Solution:")
+    dfs_solution = depth_first_search(initial_state)
+    for action, state in dfs_solution:
+        print(action, state)
+
+    print("\nIDS Solution:")
+    ids_solution = iterative_deepening_search(initial_state)
+    for action, state in ids_solution:
+        print(action, state)
