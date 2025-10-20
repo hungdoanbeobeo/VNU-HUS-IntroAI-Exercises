@@ -1,0 +1,5 @@
+Việc sử dụng thuật toán tìm kiếm theo chiều sâu (DFS) tiêu chuẩn cho bài toán 8-puzzle là không hợp lý vì hai lý do chính:
+
+1: Tính không đầy đủ (Vòng lặp): Không gian trạng thái của 8-puzzle có rất nhiều chu trình (cycles). Ví dụ, bạn có thể di chuyển ô trống lên, rồi xuống, rồi lại lên, rồi lại xuống, lặp đi lặp lại các trạng thái cũ. Một thuật toán DFS "ngây thơ" (tức là không theo dõi danh sách các trạng thái đã thăm - visited) sẽ bị kẹt trong một trong những vòng lặp đơn giản này và chạy mãi mãi, không bao giờ tìm ra lời giải.
+
+2: Tính không tối ưu: Về cơ bản, 8-puzzle là một bài toán tìm đường đi ngắn nhất—mục tiêu thường là tìm ra số lần di chuyển ít nhất để giải câu đố. DFS không phải là một thuật toán tối ưu. Nó khám phá một con đường duy nhất đi sâu nhất có thể trước khi quay lui (backtracking). Nó sẽ tìm thấy lời giải đầu tiên mà nó bắt gặp, và lời giải này rất có thể là một đường đi rất dài, vòng vo (ví dụ: 50 bước) trong khi một giải pháp ngắn hơn nhiều (ví dụ: 10 bước) lại tồn tại.
