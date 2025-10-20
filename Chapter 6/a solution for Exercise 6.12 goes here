@@ -1,0 +1,230 @@
+import heapq
+# Trạng thái đích
+GOAL_STATE = (1, 2, 3, 4, 5, 6, 7, 8, 0)
+
+# Tạo một "bản đồ" vị trí đích để tra cứu nhanh cho h2
+# GOAL_POSITIONS[tile_value] = (row, col)
+GOAL_POSITIONS = {val: (r, c) for r, row in enumerate([GOAL_STATE[0:3], GOAL_STATE[3:6], GOAL_STATE[6:9]])
+                               for c, val in enumerate(row)}
+
+def h1_misplaced_tiles(state):
+    """
+    Heuristic h1: Đếm số ô bị đặt sai vị trí (không tính ô trống).
+    """
+    misplaced = 0
+    for i in range(9):
+        # Bỏ qua ô trống
+        if state[i] != 0 and state[i] != GOAL_STATE[i]:
+            misplaced += 1
+    return misplaced
+
+def h2_manhattan_distance(state):
+    """
+    Heuristic h2: Tổng khoảng cách Manhattan của các ô đến vị trí đích.
+    """
+    distance = 0
+    for i in range(9):
+        val = state[i]
+        # Bỏ qua ô trống
+        if val != 0:
+            # Lấy vị trí hiện tại (current_r, current_c)
+            current_r, current_c = divmod(i, 3)
+            
+            # Lấy vị trí đích (goal_r, goal_c)
+            goal_r, goal_c = GOAL_POSITIONS[val]
+            
+            # Tính khoảng cách Manhattan và cộng dồn
+            distance += abs(current_r - goal_r) + abs(current_c - goal_c)
+            
+    return distance
+
+
+# --- Lớp Node và các hàm trợ giúp ---
+
+class Node:
+    def __init__(self, state, parent=None, action=None, g=0, h=0):
+        self.state = state
+        self.parent = parent
+        self.action = action
+        self.g = g  # Chi phí từ gốc đến node này (độ sâu)
+        self.h = h  # Chi phí heuristic từ node này đến đích
+        self.f = g + h # Tổng chi phí f = g + h
+
+    # So sánh các node dựa trên f-cost để dùng trong priority queue
+    def __lt__(self, other):
+        return self.f < other.f
+
+    def __repr__(self):
+        return f"<Node f={self.f} g={self.g} h={self.h} state={self.state}>"
+
+    def __hash__(self):
+        return hash(self.state)
+
+    def __eq__(self, other):
+        return isinstance(other, Node) and self.state == other.state
+
+def is_goal(state):
+    return state == GOAL_STATE
+
+def get_neighbors(state):
+    """
+    Trả về danh sách các trạng thái lân cận hợp lệ (tuples).
+    Định dạng: [(new_state_tuple, action_name), ...]
+    """
+    neighbors = []
+    s = list(state)
+    idx = s.index(0)
+    r, c = divmod(idx, 3)
+    
+    possible_moves = [(-1, 0, 'Up'), (1, 0, 'Down'), (0, -1, 'Left'), (0, 1, 'Right')]
+    
+    for dr, dc, action in possible_moves:
+        nr, nc = r + dr, c + dc
+        if 0 <= nr < 3 and 0 <= nc < 3:
+            n_idx = nr * 3 + nc
+            new_s = list(s)
+            new_s[idx], new_s[n_idx] = new_s[n_idx], new_s[idx]
+            neighbors.append((tuple(new_s), action))
+            
+    return neighbors
+
+def reconstruct_path(node):
+    """Theo vết từ node đích về node gốc để xây dựng đường đi."""
+    path = []
+    while node:
+        if node.action:
+            path.append((node.action, node.state))
+        node = node.parent
+    return list(reversed(path))
+
+# --- Thuật toán A* ---
+
+def a_star_search(initial_state, heuristic_func):
+    """
+    Thực hiện tìm kiếm A* với một hàm heuristic (h1 hoặc h2) cho trước.
+    """
+    if is_goal(initial_state):
+        return [("Start", initial_state)]
+
+    # 1. Khởi tạo Node bắt đầu
+    start_h = heuristic_func(initial_state)
+    start_node = Node(state=initial_state, g=0, h=start_h)
+
+    # 2. Khởi tạo Frontier (hàng đợi ưu tiên) và Explored (tập đã khám phá)
+    
+    # Frontier là một min-heap (heapq). 
+    # Lưu ý: heapq của Python không có hàm update-priority, 
+    # nên chúng ta sẽ thêm cả các node trùng lặp với f-cost thấp hơn.
+    # Chúng ta dùng một biến `entry_count` để phá vỡ thế hòa (tie-breaking)
+    # và đảm bảo các node có f-cost bằng nhau được xử lý theo thứ tự FIFO.
+    frontier = []
+    entry_count = 0
+    heapq.heappush(frontier, (start_node.f, entry_count, start_node))
+    entry_count += 1
+    
+    # Explored (đã đóng) lưu trữ trạng thái và g-cost *tốt nhất*
+    # đã tìm thấy cho trạng thái đó.
+    # explored[state] = g_cost
+    explored = {initial_state: 0}
+
+    while frontier:
+        # 3. Lấy node có f-cost thấp nhất từ frontier
+        current_f, _, current_node = heapq.heappop(frontier)
+        
+        # 4. Kiểm tra mục tiêu
+        if is_goal(current_node.state):
+            return reconstruct_path(current_node)
+            
+        # Tối ưu hóa: Nếu f-cost của node này lớn hơn g-cost
+        # đã lưu (nghĩa là chúng ta đã tìm thấy đường đi tốt hơn),
+        # hãy bỏ qua node này.
+        if current_f > current_node.f:
+            continue
+            
+        # 5. Mở rộng node
+        for new_state, action in get_neighbors(current_node.state):
+            
+            # 6. Tính toán chi phí cho lân cận
+            # Chi phí mỗi bước là 1
+            new_g = current_node.g + 1 
+            
+            # 7. Kiểm tra xem đã khám phá hay chưa (và có tốt hơn không)
+            # Nếu trạng thái này chưa được khám phá,
+            # HOẶC chúng ta đã tìm thấy một đường đi *ngắn hơn* (new_g)
+            # đến trạng thái này so với trước đây.
+            if new_state not in explored or new_g < explored[new_state]:
+                
+                # Cập nhật chi phí tốt nhất cho trạng thái này
+                explored[new_state] = new_g
+                
+                # Tính toán h và f
+                new_h = heuristic_func(new_state)
+                new_f = new_g + new_h
+                
+                # Tạo node mới và thêm vào frontier
+                new_node = Node(new_state, parent=current_node, action=action, g=new_g, h=new_h)
+                
+                heapq.heappush(frontier, (new_f, entry_count, new_node))
+                entry_count += 1
+
+    return None # Không tìm thấy lời giải
+
+# --- Hàm main để chạy thử nghiệm ---
+if __name__ == "__main__":
+    
+    # Một trạng thái bắt đầu (trạng thái này cần 18 bước)
+    # 7 2 4
+    # 5 0 6
+    # 8 3 1
+    start_state_medium = (7, 2, 4, 5, 0, 6, 8, 3, 1)
+
+    # Một trạng thái bắt đầu dễ (cần 4 bước)
+    # 1 2 3
+    # 4 0 5
+    # 7 8 6
+    start_state_easy = (1, 2, 3, 4, 0, 5, 7, 8, 6)
+
+    print("--- Chạy thử nghiệm với trạng thái DỄ (4 bước) ---")
+    print(f"Trạng thái bắt đầu: {start_state_easy}\n")
+    
+    # --- Thử nghiệm với h1 (Misplaced Tiles) ---
+    print("Đang chạy A* với h1 (Misplaced Tiles)...")
+    # Chúng ta cần theo dõi số node đã khám phá (kích thước của explored)
+    # để so sánh hiệu quả. Chúng ta sẽ sửa hàm A* một chút để trả về nó.
+    # (Để đơn giản, ở đây chúng ta chỉ chạy và xem độ dài đường đi)
+    
+    path_h1 = a_star_search(start_state_easy, h1_misplaced_tiles)
+    if path_h1:
+        print(f"h1 tìm thấy lời giải sau {len(path_h1)} bước.")
+    else:
+        print("h1 không tìm thấy lời giải.")
+
+    # --- Thử nghiệm với h2 (Manhattan Distance) ---
+    print("\nĐang chạy A* với h2 (Manhattan Distance)...")
+    path_h2 = a_star_search(start_state_easy, h2_manhattan_distance)
+    if path_h2:
+        print(f"h2 tìm thấy lời giải sau {len(path_h2)} bước.")
+        # print("Các bước đi:")
+        # for step in path_h2:
+        #     print(f"  - {step[0]} -> {step[1]}")
+    else:
+        print("h2 không tìm thấy lời giải.")
+
+    print("\n--- Chạy thử nghiệm với trạng thái TRUNG BÌNH (18 bước) ---")
+    print(f"Trạng thái bắt đầu: {start_state_medium}\n")
+    
+    # --- Thử nghiệm với h1 (Misplaced Tiles) ---
+    print("Đang chạy A* với h1 (Misplaced Tiles)...")
+    path_h1_medium = a_star_search(start_state_medium, h1_misplaced_tiles)
+    if path_h1_medium:
+        print(f"h1 tìm thấy lời giải sau {len(path_h1_medium)} bước.")
+    else:
+        print("h1 không tìm thấy lời giải.")
+
+    # --- Thử nghiệm với h2 (Manhattan Distance) ---
+    print("\nĐang chạy A* với h2 (Manhattan Distance)...")
+    path_h2_medium = a_star_search(start_state_medium, h2_manhattan_distance)
+    if path_h2_medium:
+        print(f"h2 tìm thấy lời giải sau {len(path_h2_medium)} bước.")
+    else:
+        print("h2 không tìm thấy lời giải.")
